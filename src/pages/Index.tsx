@@ -136,28 +136,7 @@ export default function Index() {
         </div>
       )}
 
-      {/* Searching Modal */}
-      {searchingGame && (
-        <div className="fixed inset-0 z-[90] flex items-center justify-center bg-black/85 backdrop-blur-sm">
-          <div className="text-center">
-            <div className="relative w-24 h-24 mx-auto mb-6">
-              <div className="absolute inset-0 border-4 border-[#e63946]/20 rounded-full" />
-              <div className="absolute inset-0 border-4 border-t-[#e63946] rounded-full animate-spin" />
-              <Icon name="Crosshair" size={32} className="absolute inset-0 m-auto text-[#e63946]" />
-            </div>
-            <div className="text-3xl text-white tracking-widest uppercase mb-2" style={{ fontFamily: "'Oswald', sans-serif" }}>Поиск матча</div>
-            <div className="text-gray-400 mb-4">Игроков в очереди: 847</div>
-            <div className="text-[#e63946] text-4xl tracking-widest" style={{ fontFamily: "'Oswald', sans-serif" }}>{formatTime(searchTime)}</div>
-            <button
-              onClick={() => setSearchingGame(false)}
-              className="mt-8 border border-gray-600 hover:border-white text-gray-400 hover:text-white px-8 py-2 tracking-widest uppercase text-sm transition-all"
-              style={{ fontFamily: "'Oswald', sans-serif" }}
-            >
-              Отменить
-            </button>
-          </div>
-        </div>
-      )}
+
 
       {/* NAV */}
       <nav className="fixed top-0 left-0 right-0 z-50 bg-gradient-to-b from-black/90 to-transparent backdrop-blur-sm border-b border-white/5">
