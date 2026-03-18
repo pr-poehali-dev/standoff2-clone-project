@@ -519,7 +519,7 @@ interface PlayerState {
 
 export default function Game3D({ onExit }: Props) {
   // ── Refs (never trigger re-render) ──────────────────────────────────────────
-  const mountRef      = useRef<HTMLDivElement>(null);
+  const canvasRef     = useRef<HTMLCanvasElement>(null);
   const rendererRef   = useRef<THREE.WebGLRenderer | null>(null);
   const sceneRef      = useRef<THREE.Scene | null>(null);
   const cameraRef     = useRef<THREE.PerspectiveCamera | null>(null);
@@ -562,6 +562,7 @@ export default function Game3D({ onExit }: Props) {
   const [hitFlash, setHitFlash] = useState(false);
   const [killFeed, setKillFeed] = useState<string[]>([]);
   const [showBuy, setShowBuy]   = useState(false);
+  const showBuyRef              = useRef(false);
   const [buyCat, setBuyCat]     = useState(0);
   const [inspecting, setInspecting] = useState(false);
 
@@ -769,26 +770,28 @@ export default function Game3D({ onExit }: Props) {
   // ── Main game loop ───────────────────────────────────────────────────────────
   useEffect(() => {
     if (phase !== "playing") return;
-    const container = mountRef.current;
-    if (!container) return;
+    const canvas = canvasRef.current;
+    if (!canvas) return;
 
-    // ── Renderer (append canvas ourselves, remove it ourselves) ────────────────
-    const renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference:"high-performance" });
+    // Use window size for reliable dimensions
+    const W = window.innerWidth;
+    const H = window.innerHeight;
+
+    // ── Renderer using existing canvas element ─────────────────────────────────
+    const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, powerPreference:"high-performance" });
     renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
-    renderer.setSize(container.clientWidth, container.clientHeight);
+    renderer.setSize(W, H, false); // false = don't set canvas CSS size (already 100%)
     renderer.shadowMap.enabled = true;
     renderer.shadowMap.type = THREE.PCFSoftShadowMap;
     renderer.toneMapping = THREE.ReinhardToneMapping;
     renderer.toneMappingExposure = 1.1;
-    const canvas = renderer.domElement;
-    container.appendChild(canvas);
     rendererRef.current = renderer;
 
     const scene = new THREE.Scene();
     scene.fog = new THREE.Fog(0xd4c090, 35, 100);
     sceneRef.current = scene;
 
-    const camera = new THREE.PerspectiveCamera(75, container.clientWidth / container.clientHeight, 0.04, 200);
+    const camera = new THREE.PerspectiveCamera(75, W / H, 0.04, 200);
     const spawn = team === "T" ? T_SPAWN : CT_SPAWN;
     camera.position.copy(spawn);
     yaw.current = team === "T" ? Math.PI : 0;
@@ -807,7 +810,7 @@ export default function Game3D({ onExit }: Props) {
     document.addEventListener("pointerlockchange", onLock);
 
     const onMove = (e: MouseEvent) => {
-      if (!mouse.current.locked || showBuy) return;
+      if (!mouse.current.locked || showBuyRef.current) return;
       const s = 0.0015;
       yaw.current   -= e.movementX * s;
       pitch.current  = Math.max(-1.48, Math.min(1.48, pitch.current - e.movementY * s));
@@ -822,12 +825,12 @@ export default function Game3D({ onExit }: Props) {
     const onKey = (e: KeyboardEvent) => {
       keys.current[e.code] = true;
       if (e.code === "KeyR") doReload();
-      if (e.code === "KeyB") setShowBuy(v => !v);
+      if (e.code === "KeyB") { showBuyRef.current = !showBuyRef.current; setShowBuy(showBuyRef.current); }
       if (e.code === "KeyF") {
         const wa = weaponAnim.current;
         if (!wa.inspecting) { wa.inspecting = true; wa.inspectT = 0; setInspecting(true); }
       }
-      if (e.code === "Escape") { setShowBuy(false); document.exitPointerLock(); }
+      if (e.code === "Escape") { showBuyRef.current = false; setShowBuy(false); document.exitPointerLock(); }
       const p = playerRef.current;
       if (e.code === "Digit1" && p.weapons[0]) doSwitch(p.weapons[0]);
       if (e.code === "Digit2" && p.weapons[1]) doSwitch(p.weapons[1]);
@@ -838,9 +841,8 @@ export default function Game3D({ onExit }: Props) {
     document.addEventListener("keyup",   onKeyUp);
 
     const onResize = () => {
-      if (!container) return;
-      const w = container.clientWidth, h = container.clientHeight;
-      renderer.setSize(w, h);
+      const w = window.innerWidth, h = window.innerHeight;
+      renderer.setSize(w, h, false);
       camera.aspect = w / h; camera.updateProjectionMatrix();
     };
     window.addEventListener("resize", onResize);
@@ -857,7 +859,7 @@ export default function Game3D({ onExit }: Props) {
       prevTime.current = now;
 
       // ── Fire ─────────────────────────────────────────────────────────────
-      if (isFiring.current && mouse.current.locked && !showBuy) {
+      if (isFiring.current && mouse.current.locked && !showBuyRef.current) {
         const wDef = WEAPONS[playerRef.current.currentWeapon];
         if (wDef?.automatic || (now - lastShot.current > wDef?.fireRate)) doShoot();
       }
@@ -1036,8 +1038,7 @@ export default function Game3D({ onExit }: Props) {
       window.removeEventListener("resize", onResize);
       canvas.removeEventListener("click", lockCanvas);
       document.exitPointerLock();
-      // Safe canvas removal
-      if (canvas.parentNode === container) container.removeChild(canvas);
+      // canvas is a ref — just dispose renderer, don't remove canvas from DOM
       renderer.dispose();
       rendererRef.current = null;
       sceneRef.current = null;
@@ -1152,8 +1153,8 @@ export default function Game3D({ onExit }: Props) {
   return (
     <div className="fixed inset-0 z-50 bg-black select-none" style={{ cursor:"none" }}>
 
-      {/* Three.js canvas mount */}
-      <div ref={mountRef} className="absolute inset-0" />
+      {/* Three.js canvas — ref passed directly, renderer reuses this element */}
+      <canvas ref={canvasRef} className="absolute inset-0 w-full h-full" />
 
       {/* Crosshair */}
       <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
@@ -1256,7 +1257,7 @@ export default function Game3D({ onExit }: Props) {
               <div className="text-2xl tracking-widest uppercase text-white" style={OswaldText}>
                 Закупка — <span className="text-yellow-400">${player.money.toLocaleString()}</span>
               </div>
-              <button onClick={() => setShowBuy(false)} className="text-gray-500 hover:text-white text-xl">✕</button>
+              <button onClick={() => { showBuyRef.current = false; setShowBuy(false); }} className="text-gray-500 hover:text-white text-xl">✕</button>
             </div>
             <div className="flex">
               <div className="w-48 border-r border-white/10">
