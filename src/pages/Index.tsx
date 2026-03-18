@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import Icon from "@/components/ui/icon";
+import Game3D from "@/components/Game3D";
 
 const HERO_IMAGE = "https://cdn.poehali.dev/projects/72af640a-e337-4659-9be0-c254a28e3009/files/aa312d24-4feb-4c10-b438-8d3d6ea74231.jpg";
 
@@ -54,8 +55,7 @@ export default function Index() {
   const [currentUser, setCurrentUser] = useState("Гость");
   const [showNotif, setShowNotif] = useState(false);
   const [notifText, setNotifText] = useState("");
-  const [searchingGame, setSearchingGame] = useState(false);
-  const [searchTime, setSearchTime] = useState(0);
+  const [showGame3D, setShowGame3D] = useState(false);
 
   useEffect(() => {
     const interval = setInterval(() => {
@@ -70,32 +70,18 @@ export default function Index() {
     return () => clearInterval(interval);
   }, []);
 
-  useEffect(() => {
-    let timer: ReturnType<typeof setInterval>;
-    if (searchingGame) {
-      timer = setInterval(() => setSearchTime(t => t + 1), 1000);
-    } else {
-      setSearchTime(0);
-    }
-    return () => clearInterval(timer);
-  }, [searchingGame]);
-
   const notify = (text: string) => {
     setNotifText(text);
     setShowNotif(true);
     setTimeout(() => setShowNotif(false), 3000);
   };
 
-  const handlePlay = (modeId?: number) => {
+  const handlePlay = (_modeId?: number) => {
     if (!loggedIn) {
       setLoginOpen(true);
       return;
     }
-    setSearchingGame(true);
-    setTimeout(() => {
-      setSearchingGame(false);
-      notify("Матч найден! Подключение к серверу...");
-    }, 5000);
+    setShowGame3D(true);
   };
 
   const handleLogin = () => {
@@ -106,7 +92,9 @@ export default function Index() {
     notify(`Добро пожаловать, ${playerName.trim()}!`);
   };
 
-  const formatTime = (s: number) => `${String(Math.floor(s / 60)).padStart(2, "0")}:${String(s % 60).padStart(2, "0")}`;
+  if (showGame3D) {
+    return <Game3D onExit={() => setShowGame3D(false)} />;
+  }
 
   return (
     <div className="min-h-screen bg-[#0a0a0f] text-white overflow-x-hidden" style={{ fontFamily: "'Roboto', sans-serif" }}>
